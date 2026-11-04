@@ -1,4 +1,4 @@
-"""Launcher script for Claude Desktop — ensures the project root is on sys.path."""
+"""Launcher script for Claude Desktop and IDEs — ensures the project root is on sys.path."""
 import sys
 import os
 
@@ -8,8 +8,22 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_ROOT)
 sys.path.insert(0, PROJECT_ROOT)
 
-# Disable JWT auth for local stdio sessions (Claude Desktop cannot supply tokens)
+# Disable JWT auth for local stdio sessions (IDE/Claude Desktop cannot supply tokens)
 os.environ.setdefault("MCP_AUTH_DISABLED", "true")
+
+# Load .env if present
+env_file = os.path.join(PROJECT_ROOT, ".env")
+if os.path.isfile(env_file):
+    try:
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip("'\""))
+    except Exception:
+        pass
 
 # Ensure the venv Scripts dir is on PATH so pysemgrep / semgrep-core are found
 venv_scripts = os.path.join(PROJECT_ROOT, ".venv", "Scripts")

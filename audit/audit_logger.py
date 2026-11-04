@@ -8,6 +8,31 @@ from server.logging import get_logger
 
 logger = get_logger("mcp.aegis.audit")
 
+_SECRET_KEYS = {
+    "token",
+    "api_token",
+    "password",
+    "authorization",
+    "secret",
+    "api_key",
+}
+
+
+def _redact(value: Any) -> Any:
+    """Drop credential fields before they are written to the audit log."""
+    if isinstance(value, dict):
+        redacted: dict[Any, Any] = {}
+        for key, item in value.items():
+            if str(key).lower() in _SECRET_KEYS:
+                redacted[key] = "***"
+            else:
+                redacted[key] = _redact(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact(item) for item in value)
+    return value
 
 
 def audit_tool_call(tool_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -23,8 +48,8 @@ def audit_tool_call(tool_name: str) -> Callable[[Callable[..., Any]], Callable[.
                     "extra_payload": {
                         "event": "tool_call_started",
                         "tool": tool_name,
-                        "args": str(args),
-                        "kwargs": kwargs,
+                        "args": str(_redact(args)),
+                        "kwargs": _redact(kwargs),
                     }
                 },
             )

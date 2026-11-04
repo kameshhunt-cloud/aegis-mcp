@@ -35,7 +35,7 @@ def _parse_simple_yaml(raw: str) -> dict[str, Any]:
             current_section = root[section]
             current_key = None
         elif current_section is not None and line.startswith("  ") and stripped.endswith(":"):
-            current_key = stripped[:-1]
+            current_key = stripped.strip()[:-1]
             current_section[current_key] = []
         elif current_section is not None and current_key and line.strip().startswith("-"):
             value = line.split("-", maxsplit=1)[1].strip().strip('"')

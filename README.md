@@ -79,6 +79,7 @@ flowchart TD
     ToolsLayer --> Net[Nmap / SSL]
     ToolsLayer --> Git[Git CLI]
     ToolsLayer --> Jenkins[Jenkins API]
+    ToolsLayer --> CF[Cloudflare API MCP]
 ```
 
 The server receives MCP tool-call requests over **streamable HTTP** or **stdio** transport. In HTTP mode, each request requires a JWT bearer token for authorization. In stdio mode (local usage), authorization is automatically disabled.
@@ -147,6 +148,20 @@ MEDIUM: 7
 
 > [!TIP]
 > **Jenkins tools require per-call credentials** — pass `url`, `username`, and `api_token` with each call. No global env vars needed.
+
+### Cloudflare
+
+These tools call [Cloudflare's API MCP server](https://mcp.cloudflare.com/mcp). Pass a Cloudflare API token on each call. The token's own permissions decide what `execute` and `cloudflare_call` can change.
+
+| Tool | Description |
+|------|-------------|
+| `cloudflare_whoami` | Show the user or account behind the API token |
+| `cloudflare_docs` | Search Cloudflare developer documentation |
+| `cloudflare_search` | Run JavaScript against the OpenAPI spec to find endpoints |
+| `cloudflare_execute` | Run JavaScript that calls `cloudflare.request()` |
+| `cloudflare_call` | Call any current or later tool on the Cloudflare MCP server |
+
+`cloudflare_call` is the extension point. A new Cloudflare operation does not need a new Aegis tool: pass the remote tool name and a JSON arguments object. Set `CLOUDFLARE_MCP_URL` only if you are not using `https://mcp.cloudflare.com/mcp`. For one-endpoint tools, point that URL at `https://mcp.cloudflare.com/mcp?codemode=false`.
 
 ### Application Security & SAST
 | Tool | Description |
@@ -227,7 +242,7 @@ Add to your MCP config (e.g., `mcp_config.json`):
 }
 ```
 
-> ✅ **All 19 tools work**, including Semgrep SAST and Jenkins integration.
+> ✅ **Local tools work**, including Semgrep SAST and Jenkins. Cloudflare tools also work here once you pass an API token.
 
 ### Claude Desktop
 
@@ -246,7 +261,7 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-> ⚠️ **18 of 19 tools work.** Semgrep SAST does not work due to Windows pipe limitations.
+> ⚠️ **Semgrep SAST does not work** on Claude Desktop due to Windows pipe limitations. The other local tools do. Cloudflare tools work once you pass an API token.
 
 ### Cursor / Windsurf (HTTP Mode)
 

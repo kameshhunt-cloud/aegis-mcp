@@ -9,6 +9,15 @@ scopes:
     - network_port_scan
     - aws_check_s3_public_access
     - security_semgrep_scan
+    - cloudflare_whoami
+    - cloudflare_docs
+    - cloudflare_search
+  aegis.cloudflare:
+    - cloudflare_whoami
+    - cloudflare_docs
+    - cloudflare_search
+    - cloudflare_execute
+    - cloudflare_call
   aegis.security:
     - security_run_trivy_scan
     - security_scan_secrets

@@ -7,6 +7,9 @@ roles:
     - security_check_http_headers
     - network_port_scan
     - security_semgrep_scan
+    - cloudflare_whoami
+    - cloudflare_docs
+    - cloudflare_search
   security:
     - k8s_security_audit
     - security_run_trivy_scan
@@ -18,6 +21,10 @@ roles:
     - security_semgrep_scan
     - aws_check_s3_public_access
     - network_port_scan
+    - cloudflare_whoami
+    - cloudflare_docs
+    - cloudflare_search
+    - cloudflare_execute
   admin:
     - aws_list_ec2_instances
     - k8s_list_pods
@@ -32,3 +39,8 @@ roles:
     - security_semgrep_scan
     - aws_check_s3_public_access
     - network_port_scan
+    - cloudflare_whoami
+    - cloudflare_docs
+    - cloudflare_search
+    - cloudflare_execute
+    - cloudflare_call

@@ -30,6 +30,13 @@ from tools.security.secrets import scan_secrets
 from tools.security.semgrep import run_semgrep_scan
 from tools.security.terraform import scan_terraform
 from tools.security.trivy import run_trivy_scan
+from tools.cloudflare.api import (
+    cloudflare_whoami as _cloudflare_whoami,
+    cloudflare_docs as _cloudflare_docs,
+    cloudflare_search as _cloudflare_search,
+    cloudflare_execute as _cloudflare_execute,
+    cloudflare_call as _cloudflare_call,
+)
 
 settings = load_settings()
 role_policies = load_role_policies(settings)
@@ -218,6 +225,68 @@ def jenkins_delete_job(url: str, username: str, api_token: str, job_name: str, t
     """Delete a Jenkins job from the server."""
     _authorize(token, "jenkins_delete_job")
     return _jenkins_delete_job(url, username, api_token, job_name)
+
+
+# ── Cloudflare API MCP tools ───────────────────────────────────────
+
+
+@mcp.tool()
+@audit_tool_call("cloudflare_whoami")
+def cloudflare_whoami(api_token: str = "", endpoint: str = "", token: str = "") -> dict:
+    """Show which Cloudflare user or account this API token belongs to."""
+    _authorize(token, "cloudflare_whoami")
+    return _cloudflare_whoami(api_token, endpoint)
+
+
+@mcp.tool()
+@audit_tool_call("cloudflare_docs")
+def cloudflare_docs(query: str, api_token: str = "", endpoint: str = "", token: str = "") -> dict:
+    """Search Cloudflare developer documentation through the Cloudflare API MCP server."""
+    _authorize(token, "cloudflare_docs")
+    return _cloudflare_docs(query, api_token, endpoint)
+
+
+@mcp.tool()
+@audit_tool_call("cloudflare_search")
+def cloudflare_search(
+    code: str,
+    api_token: str = "",
+    truncate: bool | None = None,
+    endpoint: str = "",
+    token: str = "",
+) -> dict:
+    """Search the Cloudflare OpenAPI spec. ``code`` is an async JavaScript arrow function that reads ``spec.paths``."""
+    _authorize(token, "cloudflare_search")
+    return _cloudflare_search(code, api_token, truncate, endpoint)
+
+
+@mcp.tool()
+@audit_tool_call("cloudflare_execute")
+def cloudflare_execute(
+    code: str,
+    api_token: str = "",
+    account_id: str = "",
+    truncate: bool | None = None,
+    endpoint: str = "",
+    token: str = "",
+) -> dict:
+    """Call the Cloudflare API. ``code`` is an async JavaScript arrow function that uses ``cloudflare.request()``."""
+    _authorize(token, "cloudflare_execute")
+    return _cloudflare_execute(code, api_token, account_id, truncate, endpoint)
+
+
+@mcp.tool()
+@audit_tool_call("cloudflare_call")
+def cloudflare_call(
+    tool_name: str,
+    api_token: str = "",
+    arguments_json: str = "{}",
+    endpoint: str = "",
+    token: str = "",
+) -> dict:
+    """Call any current or future tool on the Cloudflare MCP server. ``arguments_json`` is a JSON object."""
+    _authorize(token, "cloudflare_call")
+    return _cloudflare_call(tool_name, arguments_json, api_token, endpoint)
 
 
 if __name__ == "__main__":
