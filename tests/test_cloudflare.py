@@ -172,6 +172,28 @@ class TestCloudflareTools(unittest.TestCase):
         self.assertEqual(session.post.call_args_list[0].args[0], "https://mcp.example/mcp")
         self.assertIn("account:1", result["text"])
 
+    @unittest.mock.patch("tools.cloudflare.report.fetch_zone_report_data")
+    @unittest.mock.patch("tools.cloudflare.report.render_html_report")
+    def test_generate_report(self, mock_render: MagicMock, mock_fetch: MagicMock) -> None:
+        import tempfile
+        import os
+        from tools.cloudflare.api import cloudflare_generate_report
+
+        mock_fetch.return_value = {
+            "zone_name": "example.com",
+            "zone_id": "z1",
+            "date_start": "2026-10-01",
+            "date_end": "2026-10-31",
+            "summary": {"total_requests": 100},
+        }
+        mock_render.return_value = "<html>test</html>"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pdf_path = os.path.join(tmpdir, "test.pdf")
+            html_path = os.path.join(tmpdir, "test.html")
+            res = cloudflare_generate_report("example.com", days=30, output_pdf=pdf_path, output_html=html_path, api_token="cf-token")
+            self.assertEqual(res["zone_name"], "example.com")
+            self.assertTrue(os.path.isfile(html_path))
+
 
 if __name__ == "__main__":
     unittest.main()

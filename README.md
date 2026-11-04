@@ -160,6 +160,7 @@ These tools call [Cloudflare's API MCP server](https://mcp.cloudflare.com/mcp). 
 | `cloudflare_search` | Run JavaScript against the OpenAPI spec to find endpoints |
 | `cloudflare_execute` | Run JavaScript that calls `cloudflare.request()` |
 | `cloudflare_call` | Call any current or later tool on the Cloudflare MCP server |
+| `cloudflare_generate_report` | Generate an 8-page executive PDF & HTML overview report with charts |
 
 `cloudflare_call` is the extension point. A new Cloudflare operation does not need a new Aegis tool: pass the remote tool name and a JSON arguments object. Set `CLOUDFLARE_MCP_URL` only if you are not using `https://mcp.cloudflare.com/mcp`. For one-endpoint tools, point that URL at `https://mcp.cloudflare.com/mcp?codemode=false`.
 

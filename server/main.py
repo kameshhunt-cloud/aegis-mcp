@@ -36,6 +36,7 @@ from tools.cloudflare.api import (
     cloudflare_search as _cloudflare_search,
     cloudflare_execute as _cloudflare_execute,
     cloudflare_call as _cloudflare_call,
+    cloudflare_generate_report as _cloudflare_generate_report,
 )
 
 settings = load_settings()
@@ -287,6 +288,21 @@ def cloudflare_call(
     """Call any current or future tool on the Cloudflare MCP server. ``arguments_json`` is a JSON object."""
     _authorize(token, "cloudflare_call")
     return _cloudflare_call(tool_name, arguments_json, api_token, endpoint)
+
+
+@mcp.tool()
+@audit_tool_call("cloudflare_generate_report")
+def cloudflare_generate_report(
+    zone: str,
+    days: int = 30,
+    output_pdf: str = "",
+    output_html: str = "",
+    api_token: str = "",
+    token: str = "",
+) -> dict:
+    """Generate a comprehensive executive PDF & HTML overview report for a Cloudflare zone."""
+    _authorize(token, "cloudflare_generate_report")
+    return _cloudflare_generate_report(zone, days, output_pdf, output_html, api_token)
 
 
 if __name__ == "__main__":

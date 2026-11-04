@@ -109,3 +109,22 @@ def _parse_arguments(arguments_json: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise CloudflareMcpError("arguments_json must be a JSON object")
     return parsed
+
+
+def cloudflare_generate_report(
+    zone: str,
+    days: int = 30,
+    output_pdf: str = "",
+    output_html: str = "",
+    api_token: str = "",
+) -> dict[str, Any]:
+    """Generate a comprehensive executive PDF & HTML report for a Cloudflare zone."""
+    from tools.cloudflare.report import generate_cloudflare_report
+
+    return generate_cloudflare_report(
+        zone_identifier=zone,
+        days=days,
+        output_pdf=output_pdf,
+        output_html=output_html,
+        token=api_token,
+    )

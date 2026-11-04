@@ -12,12 +12,14 @@ scopes:
     - cloudflare_whoami
     - cloudflare_docs
     - cloudflare_search
+    - cloudflare_generate_report
   aegis.cloudflare:
     - cloudflare_whoami
     - cloudflare_docs
     - cloudflare_search
     - cloudflare_execute
     - cloudflare_call
+    - cloudflare_generate_report
   aegis.security:
     - security_run_trivy_scan
     - security_scan_secrets
