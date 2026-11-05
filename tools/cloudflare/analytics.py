@@ -291,14 +291,14 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
         if z_adaptive:
             adaptive_data = z_adaptive[0]
 
-    # 3. Query DNS Analytics
+    # 3. Query DNS Analytics (use date_geq/leq — dnsAnalyticsAdaptiveGroups only supports date filters)
     dns_query = """
     query GetDns($zoneTag: string, $dateStart: string, $dateEnd: string) {
       viewer {
         zones(filter: {zoneTag: $zoneTag}) {
           dnsByCode: dnsAnalyticsAdaptiveGroups(
             limit: 10
-            filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
+            filter: {date_geq: $dateStart, date_leq: $dateEnd}
             orderBy: [count_DESC]
           ) {
             count
@@ -308,7 +308,7 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
           }
           dnsByType: dnsAnalyticsAdaptiveGroups(
             limit: 15
-            filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
+            filter: {date_geq: $dateStart, date_leq: $dateEnd}
             orderBy: [count_DESC]
           ) {
             count
@@ -318,7 +318,7 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
           }
           dnsByName: dnsAnalyticsAdaptiveGroups(
             limit: 10
-            filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
+            filter: {date_geq: $dateStart, date_leq: $dateEnd}
             orderBy: [count_DESC]
           ) {
             count
@@ -333,7 +333,7 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     resp_dns = requests.post(
         GRAPHQL_ENDPOINT,
         headers=headers,
-        json={"query": dns_query, "variables": {"zoneTag": zone_id, "dateStart": datetime_start, "dateEnd": datetime_end}},
+        json={"query": dns_query, "variables": {"zoneTag": zone_id, "dateStart": date_start, "dateEnd": date_end}},
         timeout=45,
     )
     dns_data: dict[str, Any] = {}
@@ -466,14 +466,17 @@ def _compute_aggregated_metrics(
     count_miss = sum(item.get("count", 0) for item in cache_breakdown if item.get("dimensions", {}).get("cacheStatus") == "miss")
     count_expired = sum(item.get("count", 0) for item in cache_breakdown if item.get("dimensions", {}).get("cacheStatus") == "expired")
     cache_eligible_total = count_hit + count_reval + count_miss + count_expired
+    cache_served_total = sum(item.get("count", 0) for item in cache_breakdown)  # all adaptive requests
 
-    cache_hit_ratio = round((total_cached_requests / total_requests * 100), 1) if total_requests > 0 else 0.0
+    # cache_hit_ratio: hit+reval vs ALL adaptive requests (matches dashboard "Cached" % in traffic tab)
+    cache_hit_ratio = round(((count_hit + count_reval) / cache_served_total * 100), 1) if cache_served_total > 0 else 0.0
+    # cache_hit_ratio_eligible: hit+reval vs cacheable only (matches dashboard Cache analytics)
     cache_hit_ratio_eligible = round(((count_hit + count_reval) / cache_eligible_total * 100), 1) if cache_eligible_total > 0 else cache_hit_ratio
 
     # API Requests: Estimate from total requests minus pageviews (or API paths)
     api_requests = max(0, total_requests - total_pageviews)
 
-    # Status codes (4xx, 5xx rate)
+    # Status codes (4xx, 5xx rate) — use sum of status breakdown as denominator (same as dashboard)
     status_codes = adaptive_data.get("statusCodes", [])
     total_status_count = sum(item.get("count", 0) for item in status_codes) or total_requests or 1
     count_4xx = sum(item.get("count", 0) for item in status_codes if 400 <= item.get("dimensions", {}).get("edgeResponseStatus", 0) < 500)
