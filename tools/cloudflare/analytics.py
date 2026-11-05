@@ -78,14 +78,18 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
         tz = datetime.timezone.utc
         tz_label = "UTC"
 
-    # Exact rolling 720-hour (30-day) window ending at the current minute
-    datetime_end = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-    datetime_start = (now_utc - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Align with Cloudflare Dashboard "30 Days" Overview view:
+    # Cloudflare dashboard displays completed calendar days up to yesterday (UTC).
+    # For example, on Nov 5: 2026-10-06 to 2026-11-04 (exactly 30 completed days).
+    yesterday_utc = (now_utc - datetime.timedelta(days=1)).date()
+    start_date_utc = yesterday_utc - datetime.timedelta(days=days - 1)
 
-    # Clean calendar dates for daily trends and display
-    now_tz = now_utc.astimezone(tz)
-    date_end = now_tz.strftime("%Y-%m-%d")
-    date_start = (now_tz - datetime.timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    date_end = yesterday_utc.strftime("%Y-%m-%d")
+    date_start = start_date_utc.strftime("%Y-%m-%d")
+
+    # Exact datetime window covering the exact same completed 30 days
+    datetime_start = f"{date_start}T00:00:00Z"
+    datetime_end = f"{date_end}T23:59:59Z"
 
     headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
 
@@ -447,17 +451,41 @@ def _compute_aggregated_metrics(
         uniques_series.append(u)
         pageviews_series.append(pv)
 
-    # Align with Cloudflare Dashboard Overview headline metrics (exact rolling window)
+    # Align with Cloudflare Dashboard Overview headline metrics (exact completed 30-day window)
     overview_totals = (adaptive_data.get("overviewTotals") or [{}])[0]
     p_tot = period_total or {}
     distinct_uniques = p_tot.get("uniq", {}).get("uniques", 0) or total_uniques
 
-    if overview_totals and overview_totals.get("count"):
+    p_reqs = p_tot.get("sum", {}).get("requests", 0)
+    p_bytes = p_tot.get("sum", {}).get("bytes", 0)
+    p_cached_bytes = p_tot.get("sum", {}).get("cachedBytes", 0)
+    p_cached_reqs = p_tot.get("sum", {}).get("cachedRequests", 0)
+
+    if p_reqs:
+        total_requests = p_reqs
+    elif overview_totals and overview_totals.get("count"):
         total_requests = overview_totals.get("count", total_requests)
+
+    if p_bytes:
+        total_bytes = p_bytes
+    elif overview_totals and overview_totals.get("sum", {}).get("edgeResponseBytes"):
         total_bytes = overview_totals.get("sum", {}).get("edgeResponseBytes", total_bytes)
-        total_visits = overview_totals.get("sum", {}).get("visits") or total_uniques
-    else:
-        total_visits = total_uniques
+
+    if p_cached_bytes:
+        total_cached_bytes = p_cached_bytes
+    if p_cached_reqs:
+        total_cached_requests = p_cached_reqs
+
+    total_visits = overview_totals.get("sum", {}).get("visits") or total_uniques
+
+    # Dashboard Overview "Percent Cached" (Bandwidth saved = cachedBytes / totalBytes)
+    percent_cached_bytes = round((total_cached_bytes / total_bytes * 100), 2) if total_bytes > 0 else 0.0
+
+    # Decimal data units matching Cloudflare Dashboard Overview cards ("5 GB" and "902 MB")
+    data_transfer_gb = round(total_bytes / (1000 ** 3), 2)
+    data_transfer_rounded = f"{int(round(total_bytes / (1000 ** 3)))} GB"
+    data_cached_mb = int(round(total_cached_bytes / (1000 ** 2)))
+    data_cached_str = f"{data_cached_mb} MB"
 
     # Cache hit ratios: overall edge requests vs cache-eligible requests
     cache_breakdown = adaptive_data.get("cacheBreakdown", [])
@@ -549,8 +577,12 @@ def _compute_aggregated_metrics(
             "page_views": total_pageviews,
             "total_visits": total_visits,
             "distinct_visitors": distinct_uniques,
-            "data_transfer_gb": round(total_bytes / (1024 ** 3), 2),
-            "data_cached_gb": round(total_cached_bytes / (1024 ** 3), 2),
+            "data_transfer_gb": data_transfer_gb,
+            "data_transfer_rounded": data_transfer_rounded,
+            "data_cached_gb": round(total_cached_bytes / (1000 ** 3), 2),
+            "data_cached_mb": data_cached_mb,
+            "data_cached_str": data_cached_str,
+            "percent_cached_bytes": percent_cached_bytes,
             "cache_hit_ratio": cache_hit_ratio,
             "cache_hit_ratio_eligible": cache_hit_ratio_eligible,
             "waf_blocked_requests": waf_blocked,

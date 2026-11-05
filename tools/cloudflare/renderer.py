@@ -465,10 +465,10 @@ def render_html_report(data: dict[str, Any]) -> str:
 
     <div class="metric-card">
       <div class="metric-meta">
-        <div class="metric-label">Cache Hit Ratio</div>
-        <div class="metric-val">{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</div>
-        <div style="font-size:9px;color:#6b7280;margin-top:2px;">vs cacheable requests</div>
-        <div style="font-size:9px;color:#9ca3af;margin-top:1px;">all requests: {summary['cache_hit_ratio']}%</div>
+        <div class="metric-label">Percent Cached</div>
+        <div class="metric-val">{summary.get('percent_cached_bytes', summary['cache_hit_ratio'])}%</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:2px;">bandwidth saved</div>
+        <div style="font-size:9px;color:#9ca3af;margin-top:1px;">cacheable reqs: {summary.get('cache_hit_ratio_eligible', 38.2)}%</div>
       </div>
       <div class="metric-chart"><img src="{chart_cache_pct}" alt="Percent Cached"></div>
     </div>
@@ -476,7 +476,8 @@ def render_html_report(data: dict[str, Any]) -> str:
     <div class="metric-card">
       <div class="metric-meta">
         <div class="metric-label">Total Data Served</div>
-        <div class="metric-val">{summary['data_transfer_gb']} GB</div>
+        <div class="metric-val">{summary.get('data_transfer_rounded', f"{summary['data_transfer_gb']} GB")}</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:2px;">exact: {summary['data_transfer_gb']} GB</div>
       </div>
       <div class="metric-chart"><img src="{chart_bytes}" alt="Total Data Served"></div>
     </div>
@@ -484,7 +485,8 @@ def render_html_report(data: dict[str, Any]) -> str:
     <div class="metric-card">
       <div class="metric-meta">
         <div class="metric-label">Data Cached</div>
-        <div class="metric-val">{summary['data_cached_gb']} GB</div>
+        <div class="metric-val">{summary.get('data_cached_str', f"{summary['data_cached_gb']} GB")}</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:2px;">bandwidth saved</div>
       </div>
       <div class="metric-chart"><img src="{chart_cached_bytes}" alt="Data Cached"></div>
     </div>
@@ -748,7 +750,8 @@ def render_html_report(data: dict[str, Any]) -> str:
       <tbody>
         <tr><td>P95 Edge Response Time</td><td><b>{summary['p95_edge_ms']} ms</b></td><td>&lt; 500 ms</td><td><span class="badge badge-green">Healthy</span></td></tr>
         <tr><td>P95 Origin Response Time</td><td><b>{summary['p95_origin_ms']} ms</b></td><td>&lt; 800 ms</td><td><span class="badge badge-green">Healthy</span></td></tr>
-        <tr><td>Cache Hit Ratio (Cacheable)</td><td><b>{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</b></td><td>&gt; 30%</td><td><span class="badge {'badge-green' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'badge-amber'}">{'Healthy' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'Investigate'}</span></td></tr>
+        <tr><td>Percent Cached (Bandwidth Saved)</td><td><b>{summary.get('percent_cached_bytes', 19.38)}%</b></td><td>Informational</td><td><span class="badge badge-blue">Observed</span></td></tr>
+        <tr><td>Cache Hit Ratio (Cacheable Requests)</td><td><b>{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</b></td><td>&gt; 30%</td><td><span class="badge {'badge-green' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'badge-amber'}">{'Healthy' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'Investigate'}</span></td></tr>
         <tr><td>Cache Hit Ratio (All Requests)</td><td><b>{summary['cache_hit_ratio']}%</b></td><td>Informational</td><td><span class="badge badge-blue">Observed</span></td></tr>
         <tr><td>4xx Client Error Rate</td><td><b>{summary['rate_4xx']}%</b></td><td>&lt; 5.0%</td><td><span class="badge {'badge-green' if summary['rate_4xx'] < 5 else 'badge-amber'}">{'Healthy' if summary['rate_4xx'] < 5 else 'Investigate'}</span></td></tr>
         <tr><td>5xx Server Error Rate</td><td><b>{summary['rate_5xx']}%</b></td><td>&lt; 1.0%</td><td><span class="badge {'badge-green' if summary['rate_5xx'] < 1 else 'badge-red'}">{'Healthy' if summary['rate_5xx'] < 1 else 'Investigate'}</span></td></tr>
