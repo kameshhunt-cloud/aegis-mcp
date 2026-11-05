@@ -468,6 +468,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <div class="metric-label">Cache Hit Ratio</div>
         <div class="metric-val">{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</div>
         <div style="font-size:9px;color:#6b7280;margin-top:2px;">vs cacheable requests</div>
+        <div style="font-size:9px;color:#9ca3af;margin-top:1px;">all requests: {summary['cache_hit_ratio']}%</div>
       </div>
       <div class="metric-chart"><img src="{chart_cache_pct}" alt="Percent Cached"></div>
     </div>
@@ -748,6 +749,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><td>P95 Edge Response Time</td><td><b>{summary['p95_edge_ms']} ms</b></td><td>&lt; 500 ms</td><td><span class="badge badge-green">Healthy</span></td></tr>
         <tr><td>P95 Origin Response Time</td><td><b>{summary['p95_origin_ms']} ms</b></td><td>&lt; 800 ms</td><td><span class="badge badge-green">Healthy</span></td></tr>
         <tr><td>Cache Hit Ratio (Cacheable)</td><td><b>{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</b></td><td>&gt; 30%</td><td><span class="badge {'badge-green' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'badge-amber'}">{'Healthy' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'Investigate'}</span></td></tr>
+        <tr><td>Cache Hit Ratio (All Requests)</td><td><b>{summary['cache_hit_ratio']}%</b></td><td>Informational</td><td><span class="badge badge-blue">Observed</span></td></tr>
         <tr><td>4xx Client Error Rate</td><td><b>{summary['rate_4xx']}%</b></td><td>&lt; 5.0%</td><td><span class="badge {'badge-green' if summary['rate_4xx'] < 5 else 'badge-amber'}">{'Healthy' if summary['rate_4xx'] < 5 else 'Investigate'}</span></td></tr>
         <tr><td>5xx Server Error Rate</td><td><b>{summary['rate_5xx']}%</b></td><td>&lt; 1.0%</td><td><span class="badge {'badge-green' if summary['rate_5xx'] < 1 else 'badge-red'}">{'Healthy' if summary['rate_5xx'] < 1 else 'Investigate'}</span></td></tr>
       </tbody>
