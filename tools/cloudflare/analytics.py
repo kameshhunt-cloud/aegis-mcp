@@ -114,6 +114,22 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
               uniques
             }
           }
+          periodTotal: httpRequests1dGroups(
+            limit: 1
+            filter: {date_geq: $dateStart, date_leq: $dateEnd}
+          ) {
+            sum {
+              requests
+              bytes
+              cachedRequests
+              cachedBytes
+              pageViews
+              threats
+            }
+            uniq {
+              uniques
+            }
+          }
         }
       }
     }
@@ -125,10 +141,14 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
         timeout=45,
     )
     daily_groups = []
+    period_total = {}
     if resp_daily.status_code == 200:
         zones_data = resp_daily.json().get("data", {}).get("viewer", {}).get("zones", [])
         if zones_data:
             daily_groups = zones_data[0].get("httpRequests1dGroups", [])
+            p_tot = zones_data[0].get("periodTotal", [])
+            if p_tot:
+                period_total = p_tot[0]
 
     # 2. Query GraphQL for Adaptive Telemetry, Performance, Security & Top Stats
     adaptive_query = """
@@ -363,6 +383,7 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
         tls13=tls13,
         certificates=certificates,
         timezone=tz_label,
+        period_total=period_total,
     )
 
 
@@ -379,6 +400,7 @@ def _compute_aggregated_metrics(
     tls13: str,
     certificates: list[dict[str, Any]],
     timezone: str = "SGT (UTC+8)",
+    period_total: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     # Sum daily totals
     total_requests = 0
@@ -427,6 +449,9 @@ def _compute_aggregated_metrics(
 
     # Align with Cloudflare Dashboard Overview headline metrics (exact rolling window)
     overview_totals = (adaptive_data.get("overviewTotals") or [{}])[0]
+    p_tot = period_total or {}
+    distinct_uniques = p_tot.get("uniq", {}).get("uniques", 0) or total_uniques
+
     if overview_totals and overview_totals.get("count"):
         total_requests = overview_totals.get("count", total_requests)
         total_bytes = overview_totals.get("sum", {}).get("edgeResponseBytes", total_bytes)
@@ -434,8 +459,16 @@ def _compute_aggregated_metrics(
     else:
         total_visits = total_uniques
 
-    # Cache hit ratio
+    # Cache hit ratios: overall edge requests vs cache-eligible requests
+    cache_breakdown = adaptive_data.get("cacheBreakdown", [])
+    count_hit = sum(item.get("count", 0) for item in cache_breakdown if item.get("dimensions", {}).get("cacheStatus") == "hit")
+    count_reval = sum(item.get("count", 0) for item in cache_breakdown if item.get("dimensions", {}).get("cacheStatus") == "revalidated")
+    count_miss = sum(item.get("count", 0) for item in cache_breakdown if item.get("dimensions", {}).get("cacheStatus") == "miss")
+    count_expired = sum(item.get("count", 0) for item in cache_breakdown if item.get("dimensions", {}).get("cacheStatus") == "expired")
+    cache_eligible_total = count_hit + count_reval + count_miss + count_expired
+
     cache_hit_ratio = round((total_cached_requests / total_requests * 100), 1) if total_requests > 0 else 0.0
+    cache_hit_ratio_eligible = round(((count_hit + count_reval) / cache_eligible_total * 100), 1) if cache_eligible_total > 0 else cache_hit_ratio
 
     # API Requests: Estimate from total requests minus pageviews (or API paths)
     api_requests = max(0, total_requests - total_pageviews)
@@ -511,10 +544,12 @@ def _compute_aggregated_metrics(
             "total_requests": total_requests,
             "api_requests": api_requests,
             "page_views": total_pageviews,
-            "total_visits": total_uniques,
+            "total_visits": total_visits,
+            "distinct_visitors": distinct_uniques,
             "data_transfer_gb": round(total_bytes / (1024 ** 3), 2),
             "data_cached_gb": round(total_cached_bytes / (1024 ** 3), 2),
             "cache_hit_ratio": cache_hit_ratio,
+            "cache_hit_ratio_eligible": cache_hit_ratio_eligible,
             "waf_blocked_requests": waf_blocked,
             "waf_challenged_requests": waf_challenged,
             "waf_allowed_requests": waf_allowed,

@@ -449,7 +449,8 @@ def render_html_report(data: dict[str, Any]) -> str:
     <div class="metric-card">
       <div class="metric-meta">
         <div class="metric-label">Unique Visitors</div>
-        <div class="metric-val">{_format_num(summary['total_visits'])}</div>
+        <div class="metric-val">{_format_num(summary.get('distinct_visitors', summary['total_visits']))}</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:2px;">30-day distinct (HLL)</div>
       </div>
       <div class="metric-chart"><img src="{chart_uniques}" alt="Unique Visitors"></div>
     </div>
@@ -464,8 +465,9 @@ def render_html_report(data: dict[str, Any]) -> str:
 
     <div class="metric-card">
       <div class="metric-meta">
-        <div class="metric-label">Percent Cached</div>
-        <div class="metric-val">{summary['cache_hit_ratio']}%</div>
+        <div class="metric-label">Cache Hit Ratio</div>
+        <div class="metric-val">{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:2px;">vs cacheable requests</div>
       </div>
       <div class="metric-chart"><img src="{chart_cache_pct}" alt="Percent Cached"></div>
     </div>
@@ -513,7 +515,8 @@ def render_html_report(data: dict[str, Any]) -> str:
             <li>Requests (Total: {_format_num(summary['total_requests'])})</li>
             <li>Data Transfer (Total: {summary['data_transfer_gb']} GB)</li>
             <li>Page Views ({_format_num(summary['page_views'])})</li>
-            <li>Total Visits ({_format_num(summary['total_visits'])})</li>
+            <li>Total Visits / Sessions ({_format_num(summary['total_visits'])})</li>
+            <li>Unique Visitors / 30d Distinct ({_format_num(summary.get('distinct_visitors', summary['total_visits']))})</li>
             <li>API Requests ({_format_num(summary['api_requests'])})</li>
           </ol>
         </li>
@@ -525,7 +528,7 @@ def render_html_report(data: dict[str, Any]) -> str:
 
     <div class="section-title">HTTP Traffic – Requests & Visits</div>
     <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
-      Total visits over the lookback period: <b>{_format_num(summary['total_visits'])}</b>
+      Total visits (browser sessions) over the lookback period: <b>{_format_num(summary['total_visits'])}</b> &nbsp;|&nbsp; Distinct visitors (30-day HLL): <b>{_format_num(summary.get('distinct_visitors', summary['total_visits']))}</b>
     </div>
 
     <div class="large-chart">
@@ -547,7 +550,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       </div>
       <div class="kpi-box">
         <div class="kpi-box-val">{_format_num(summary['total_visits'])}</div>
-        <div class="kpi-box-lbl">Unique Visits</div>
+        <div class="kpi-box-lbl">Total Visits</div>
       </div>
     </div>
 
@@ -744,7 +747,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <tbody>
         <tr><td>P95 Edge Response Time</td><td><b>{summary['p95_edge_ms']} ms</b></td><td>&lt; 500 ms</td><td><span class="badge badge-green">Healthy</span></td></tr>
         <tr><td>P95 Origin Response Time</td><td><b>{summary['p95_origin_ms']} ms</b></td><td>&lt; 800 ms</td><td><span class="badge badge-green">Healthy</span></td></tr>
-        <tr><td>Cache Hit Ratio</td><td><b>{summary['cache_hit_ratio']}%</b></td><td>&gt; 30%</td><td><span class="badge badge-blue">Active</span></td></tr>
+        <tr><td>Cache Hit Ratio (Cacheable)</td><td><b>{summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio'])}%</b></td><td>&gt; 30%</td><td><span class="badge {'badge-green' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'badge-amber'}">{'Healthy' if summary.get('cache_hit_ratio_eligible', summary['cache_hit_ratio']) >= 30 else 'Investigate'}</span></td></tr>
         <tr><td>4xx Client Error Rate</td><td><b>{summary['rate_4xx']}%</b></td><td>&lt; 5.0%</td><td><span class="badge {'badge-green' if summary['rate_4xx'] < 5 else 'badge-amber'}">{'Healthy' if summary['rate_4xx'] < 5 else 'Investigate'}</span></td></tr>
         <tr><td>5xx Server Error Rate</td><td><b>{summary['rate_5xx']}%</b></td><td>&lt; 1.0%</td><td><span class="badge {'badge-green' if summary['rate_5xx'] < 1 else 'badge-red'}">{'Healthy' if summary['rate_5xx'] < 1 else 'Investigate'}</span></td></tr>
       </tbody>
