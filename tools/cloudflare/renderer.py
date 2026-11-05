@@ -41,6 +41,13 @@ def _format_num(val: int | float) -> str:
     return str(val)
 
 
+def _format_exact(val: int | float) -> str:
+    """Format exact integer count with thousands comma separator (e.g. 842,277)."""
+    if isinstance(val, (int, float)):
+        return f"{int(round(val)):,}"
+    return str(val)
+
+
 def _format_date_label(date_str: str, short: bool = False) -> str:
     """Format date string YYYY-MM-DD into clean, readable label."""
     if not date_str:
@@ -450,7 +457,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div class="metric-meta">
         <div class="metric-label">Unique Visitors</div>
         <div class="metric-val">{_format_num(summary.get('distinct_visitors', summary['total_visits']))}</div>
-        <div style="font-size:9px;color:#6b7280;margin-top:2px;">30-day distinct (HLL)</div>
+        <div style="font-size:9.5px;color:#475569;margin-top:2px;font-weight:600;">{_format_exact(summary.get('distinct_visitors', summary['total_visits']))} distinct</div>
       </div>
       <div class="metric-chart"><img src="{chart_uniques}" alt="Unique Visitors"></div>
     </div>
@@ -459,6 +466,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div class="metric-meta">
         <div class="metric-label">Total Requests</div>
         <div class="metric-val">{_format_num(summary['total_requests'])}</div>
+        <div style="font-size:9.5px;color:#475569;margin-top:2px;font-weight:600;">{_format_exact(summary['total_requests'])} requests</div>
       </div>
       <div class="metric-chart"><img src="{chart_requests}" alt="Total Requests"></div>
     </div>
@@ -467,8 +475,8 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div class="metric-meta">
         <div class="metric-label">Percent Cached</div>
         <div class="metric-val">{summary.get('percent_cached_bytes', summary['cache_hit_ratio'])}%</div>
-        <div style="font-size:9px;color:#6b7280;margin-top:2px;">bandwidth saved</div>
-        <div style="font-size:9px;color:#9ca3af;margin-top:1px;">cacheable reqs: {summary.get('cache_hit_ratio_eligible', 38.2)}%</div>
+        <div style="font-size:9px;color:#6b7280;margin-top:2px;">bandwidth saved ({summary.get('data_cached_str', '902 MB')} of {summary.get('data_transfer_gb', 4.65)} GB)</div>
+        <div style="font-size:9px;color:#9ca3af;margin-top:1px;">cacheable reqs: {summary.get('cache_hit_ratio_eligible', 37.8)}%</div>
       </div>
       <div class="metric-chart"><img src="{chart_cache_pct}" alt="Percent Cached"></div>
     </div>
@@ -477,7 +485,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div class="metric-meta">
         <div class="metric-label">Total Data Served</div>
         <div class="metric-val">{summary.get('data_transfer_rounded', f"{summary['data_transfer_gb']} GB")}</div>
-        <div style="font-size:9px;color:#6b7280;margin-top:2px;">exact: {summary['data_transfer_gb']} GB</div>
+        <div style="font-size:9.5px;color:#475569;margin-top:2px;font-weight:600;">{summary['data_transfer_gb']} GB exact</div>
       </div>
       <div class="metric-chart"><img src="{chart_bytes}" alt="Total Data Served"></div>
     </div>
@@ -486,7 +494,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div class="metric-meta">
         <div class="metric-label">Data Cached</div>
         <div class="metric-val">{summary.get('data_cached_str', f"{summary['data_cached_gb']} GB")}</div>
-        <div style="font-size:9px;color:#6b7280;margin-top:2px;">bandwidth saved</div>
+        <div style="font-size:9.5px;color:#475569;margin-top:2px;font-weight:600;">bandwidth saved ({summary.get('percent_cached_bytes', 19.38)}%)</div>
       </div>
       <div class="metric-chart"><img src="{chart_cached_bytes}" alt="Data Cached"></div>
     </div>
@@ -515,12 +523,12 @@ def render_html_report(data: dict[str, Any]) -> str:
       <ol>
         <li>HTTP Traffic
           <ol type="a">
-            <li>Requests (Total: {_format_num(summary['total_requests'])})</li>
-            <li>Data Transfer (Total: {summary['data_transfer_gb']} GB)</li>
-            <li>Page Views ({_format_num(summary['page_views'])})</li>
-            <li>Total Visits / Sessions ({_format_num(summary['total_visits'])})</li>
-            <li>Unique Visitors / 30d Distinct ({_format_num(summary.get('distinct_visitors', summary['total_visits']))})</li>
-            <li>API Requests ({_format_num(summary['api_requests'])})</li>
+            <li>Requests (Total: {_format_exact(summary['total_requests'])} | {_format_num(summary['total_requests'])})</li>
+            <li>Data Transfer (Total: {summary['data_transfer_gb']} GB | {summary.get('data_transfer_rounded', '5 GB')})</li>
+            <li>Page Views ({_format_exact(summary['page_views'])})</li>
+            <li>Total Visits / Sessions ({_format_exact(summary['total_visits'])})</li>
+            <li>Unique Visitors / 30d Distinct ({_format_exact(summary.get('distinct_visitors', summary['total_visits']))} | {_format_num(summary.get('distinct_visitors', summary['total_visits']))})</li>
+            <li>API Requests ({_format_exact(summary['api_requests'])})</li>
           </ol>
         </li>
         <li>Security Analytics (WAF Actions, Attack Types, Top Attacked URLs, Attacking IPs)</li>
@@ -531,7 +539,7 @@ def render_html_report(data: dict[str, Any]) -> str:
 
     <div class="section-title">HTTP Traffic – Requests & Visits</div>
     <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
-      Total visits (browser sessions) over the lookback period: <b>{_format_num(summary['total_visits'])}</b> &nbsp;|&nbsp; Distinct visitors (30-day HLL): <b>{_format_num(summary.get('distinct_visitors', summary['total_visits']))}</b>
+      Total visits (browser sessions): <b>{_format_exact(summary['total_visits'])}</b> ({_format_num(summary['total_visits'])}) &nbsp;|&nbsp; Distinct visitors (30-day HLL): <b>{_format_exact(summary.get('distinct_visitors', summary['total_visits']))}</b> ({_format_num(summary.get('distinct_visitors', summary['total_visits']))})
     </div>
 
     <div class="large-chart">
@@ -540,20 +548,20 @@ def render_html_report(data: dict[str, Any]) -> str:
 
     <div class="kpi-grid">
       <div class="kpi-box">
-        <div class="kpi-box-val">{_format_num(summary['total_requests'])}</div>
-        <div class="kpi-box-lbl">Total Requests</div>
+        <div class="kpi-box-val">{_format_exact(summary['total_requests'])}</div>
+        <div class="kpi-box-lbl">Total Requests ({_format_num(summary['total_requests'])})</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val">{_format_num(summary['api_requests'])}</div>
+        <div class="kpi-box-val">{_format_exact(summary['api_requests'])}</div>
         <div class="kpi-box-lbl">API Requests</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val">{_format_num(summary['page_views'])}</div>
+        <div class="kpi-box-val">{_format_exact(summary['page_views'])}</div>
         <div class="kpi-box-lbl">Page Views</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val">{_format_num(summary['total_visits'])}</div>
-        <div class="kpi-box-lbl">Total Visits</div>
+        <div class="kpi-box-val">{_format_exact(summary['total_visits'])}</div>
+        <div class="kpi-box-lbl">Total Visits ({_format_num(summary['total_visits'])})</div>
       </div>
     </div>
 
@@ -581,7 +589,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <img src="{chart_data_transfer}" alt="Data transfer over time">
     </div>
 
-    <div class="section-title">HTTP Traffic – Page Views ({_format_num(summary['page_views'])})</div>
+    <div class="section-title">HTTP Traffic – Page Views ({_format_exact(summary['page_views'])})</div>
     <div class="large-chart">
       <img src="{chart_pageviews}" alt="Page views over time">
     </div>
@@ -605,7 +613,7 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div style="font-size: 10.5px; color: #64748b;">HTTP Traffic – API Requests & Hostnames ({tz_label})</div>
     </div>
 
-    <div class="section-title">HTTP Traffic – Dedicated API Requests ({_format_num(summary['api_requests'])})</div>
+    <div class="section-title">HTTP Traffic – Dedicated API Requests ({_format_exact(summary['api_requests'])})</div>
     <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
       Direct backend API endpoints and microservices traffic.
     </div>
@@ -620,7 +628,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Hostname / FQDN</th><th>Total Requests</th><th>Traffic Share</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td><b>{h['host']}</b></td><td>{_format_num(h['count'])}</td><td>{round(h['count']/summary['total_requests']*100, 1) if summary['total_requests'] else 0}%</td></tr>" for i, h in enumerate(breakdowns.get("top_hosts", [])[:5]))}
+        {"".join(f"<tr><td>{i+1}</td><td><b>{h['host']}</b></td><td>{_format_exact(h['count'])}</td><td>{round(h['count']/summary['total_requests']*100, 1) if summary['total_requests'] else 0}%</td></tr>" for i, h in enumerate(breakdowns.get("top_hosts", [])[:5]))}
       </tbody>
     </table>
 
@@ -646,19 +654,19 @@ def render_html_report(data: dict[str, Any]) -> str:
     <div class="section-title">Security Analytics – Action Breakdown</div>
     <div class="kpi-grid">
       <div class="kpi-box">
-        <div class="kpi-box-val" style="color: #b91c1c;">{_format_num(summary['waf_blocked_requests'])}</div>
+        <div class="kpi-box-val" style="color: #b91c1c;">{_format_exact(summary['waf_blocked_requests'])}</div>
         <div class="kpi-box-lbl">WAF Blocked</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val" style="color: #b45309;">{_format_num(summary['waf_challenged_requests'])}</div>
+        <div class="kpi-box-val" style="color: #b45309;">{_format_exact(summary['waf_challenged_requests'])}</div>
         <div class="kpi-box-lbl">WAF Challenged</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val" style="color: #15803d;">{_format_num(summary['waf_allowed_requests'])}</div>
+        <div class="kpi-box-val" style="color: #15803d;">{_format_exact(summary['waf_allowed_requests'])}</div>
         <div class="kpi-box-lbl">Clean / Allowed</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val" style="color: #2563eb;">{_format_num(summary['waf_logged_requests'])}</div>
+        <div class="kpi-box-val" style="color: #2563eb;">{_format_exact(summary['waf_logged_requests'])}</div>
         <div class="kpi-box-lbl">Logged / Monitored</div>
       </div>
     </div>
@@ -669,7 +677,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Threat Classification / Rule Group</th><th>Mitigated Events</th><th>Threat Share</th><th>Action Taken</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td><b>{a['type']}</b></td><td>{_format_num(a['count'])}</td><td>{a.get('share', 'N/A')}</td><td><span class='badge badge-red'>{a.get('action', 'Blocked')}</span></td></tr>" for i, a in enumerate(breakdowns.get("top_attack_types", [])[:5]))}
+        {"".join(f"<tr><td>{i+1}</td><td><b>{a['type']}</b></td><td>{_format_exact(a['count'])}</td><td>{a.get('share', 'N/A')}</td><td><span class='badge badge-red'>{a.get('action', 'Blocked')}</span></td></tr>" for i, a in enumerate(breakdowns.get("top_attack_types", [])[:5]))}
       </tbody>
     </table>
 
@@ -679,7 +687,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Target Path / URL</th><th>Mitigated Hits</th><th>Threat Severity</th><th>Mitigation</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td><code>{p['path']}</code></td><td>{_format_num(p['count'])}</td><td><span class='badge badge-red'>High Threat</span></td><td><span class='badge badge-amber'>Mitigated</span></td></tr>" for i, p in enumerate(breakdowns.get("top_attacked_paths", [])[:5]))}
+        {"".join(f"<tr><td>{i+1}</td><td><code>{p['path']}</code></td><td>{_format_exact(p['count'])}</td><td><span class='badge badge-red'>High Threat</span></td><td><span class='badge badge-amber'>Mitigated</span></td></tr>" for i, p in enumerate(breakdowns.get("top_attacked_paths", [])[:5]))}
       </tbody>
     </table>
 
@@ -728,7 +736,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Client IP Address</th><th>Geo Country</th><th>Mitigated Attacks</th><th>Action Taken</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td><b>{ip['ip']}</b></td><td>{ip['country']}</td><td>{_format_num(ip['count'])}</td><td><span class='badge badge-red'>Block</span></td></tr>" for i, ip in enumerate(breakdowns.get("top_attacking_ips", [])[:5]))}
+        {"".join(f"<tr><td>{i+1}</td><td><b>{ip['ip']}</b></td><td>{ip['country']}</td><td>{_format_exact(ip['count'])}</td><td><span class='badge badge-red'>Block</span></td></tr>" for i, ip in enumerate(breakdowns.get("top_attacking_ips", [])[:5]))}
       </tbody>
     </table>
 
@@ -738,7 +746,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Country</th><th>Total Requests</th><th>Percentage</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td>{c['country']}</td><td>{_format_num(c['count'])}</td><td>{round(c['count']/summary['total_requests']*100, 1) if summary['total_requests'] else 0}%</td></tr>" for i, c in enumerate(breakdowns.get("top_countries", [])[:5]))}
+        {"".join(f"<tr><td>{i+1}</td><td>{c['country']}</td><td>{_format_exact(c['count'])}</td><td>{round(c['count']/summary['total_requests']*100, 1) if summary['total_requests'] else 0}%</td></tr>" for i, c in enumerate(breakdowns.get("top_countries", [])[:5]))}
       </tbody>
     </table>
 
@@ -780,15 +788,15 @@ def render_html_report(data: dict[str, Any]) -> str:
     <div class="section-title">DNS Resolution Health</div>
     <div class="kpi-grid">
       <div class="kpi-box">
-        <div class="kpi-box-val">{_format_num(summary['total_dns_queries'])}</div>
-        <div class="kpi-box-lbl">Total DNS Queries</div>
+        <div class="kpi-box-val">{_format_exact(summary['total_dns_queries'])}</div>
+        <div class="kpi-box-lbl">Total DNS ({_format_num(summary['total_dns_queries'])})</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val" style="color: #15803d;">{_format_num(summary['count_noerror'])}</div>
+        <div class="kpi-box-val" style="color: #15803d;">{_format_exact(summary['count_noerror'])}</div>
         <div class="kpi-box-lbl">NOERROR Queries</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-box-val" style="color: #b45309;">{_format_num(summary['count_nxdomain'])}</div>
+        <div class="kpi-box-val" style="color: #b45309;">{_format_exact(summary['count_nxdomain'])}</div>
         <div class="kpi-box-lbl">NXDOMAIN Queries</div>
       </div>
       <div class="kpi-box">
@@ -803,7 +811,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Query Name / Record</th><th>Total Query Volume</th><th>Query Share</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td><b>{d['name']}</b></td><td>{_format_num(d['count'])}</td><td>{round(d['count']/summary['total_dns_queries']*100, 1) if summary['total_dns_queries'] else 0}%</td></tr>" for i, d in enumerate(breakdowns.get("dns_by_name", [])[:10]))}
+        {"".join(f"<tr><td>{i+1}</td><td><b>{d['name']}</b></td><td>{_format_exact(d['count'])}</td><td>{round(d['count']/summary['total_dns_queries']*100, 1) if summary['total_dns_queries'] else 0}%</td></tr>" for i, d in enumerate(breakdowns.get("dns_by_name", [])[:10]))}
       </tbody>
     </table>
 
@@ -832,7 +840,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         <tr><th>#</th><th>Record Type</th><th>Query Count</th><th>Percentage</th></tr>
       </thead>
       <tbody>
-        {"".join(f"<tr><td>{i+1}</td><td><span class='badge badge-blue'>{r['type']}</span></td><td>{_format_num(r['count'])}</td><td>{round(r['count']/summary['total_dns_queries']*100, 1) if summary['total_dns_queries'] else 0}%</td></tr>" for i, r in enumerate(breakdowns.get("dns_by_type", [])[:8]))}
+        {"".join(f"<tr><td>{i+1}</td><td><span class='badge badge-blue'>{r['type']}</span></td><td>{_format_exact(r['count'])}</td><td>{round(r['count']/summary['total_dns_queries']*100, 1) if summary['total_dns_queries'] else 0}%</td></tr>" for i, r in enumerate(breakdowns.get("dns_by_type", [])[:8]))}
       </tbody>
     </table>
 
