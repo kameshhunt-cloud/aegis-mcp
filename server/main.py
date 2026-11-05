@@ -298,11 +298,12 @@ def cloudflare_generate_report(
     output_pdf: str = "",
     output_html: str = "",
     api_token: str = "",
+    timezone: str = "SGT",
     token: str = "",
 ) -> dict:
     """Generate a comprehensive executive PDF & HTML overview report for a Cloudflare zone."""
     _authorize(token, "cloudflare_generate_report")
-    return _cloudflare_generate_report(zone, days, output_pdf, output_html, api_token)
+    return _cloudflare_generate_report(zone, days, output_pdf, output_html, api_token, timezone=timezone)
 
 
 if __name__ == "__main__":

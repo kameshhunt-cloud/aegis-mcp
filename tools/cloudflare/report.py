@@ -43,10 +43,11 @@ def generate_cloudflare_report(
     output_pdf: str = "",
     output_html: str = "",
     token: str = "",
+    timezone: str = "SGT",
 ) -> dict[str, Any]:
     """Generate a comprehensive executive PDF & HTML report for a Cloudflare zone."""
     # 1. Fetch data
-    report_data = fetch_zone_report_data(zone_identifier, token=token, days=days)
+    report_data = fetch_zone_report_data(zone_identifier, token=token, days=days, tz_name=timezone)
     zone_name = report_data["zone_name"]
 
     # 2. Render HTML
@@ -104,6 +105,7 @@ def main() -> None:
     parser.add_argument("--output-pdf", default="", help="Custom PDF output path")
     parser.add_argument("--output-html", default="", help="Custom HTML output path")
     parser.add_argument("--token", default="", help="Cloudflare API token (or set CLOUDFLARE_API_TOKEN)")
+    parser.add_argument("--tz", "--timezone", default="SGT", help="Timezone label (default: SGT)")
 
     args = parser.parse_args()
 
@@ -124,6 +126,7 @@ def main() -> None:
         output_pdf=args.output_pdf,
         output_html=args.output_html,
         token=args.token,
+        timezone=args.tz,
     )
 
     print(f"\nReport Generated Successfully!")

@@ -109,6 +109,7 @@ def _generate_timeseries_chart(
     title: str,
     ylabel: str,
     color: str = "#2563eb",
+    xlabel: str = "Time (SGT)",
 ) -> str:
     fig, ax = plt.subplots(figsize=(8.5, 2.5), dpi=160)
     indices = list(range(len(y_vals)))
@@ -124,6 +125,8 @@ def _generate_timeseries_chart(
     ax.grid(True, linestyle="--", alpha=0.4, color="#e2e8f0")
     ax.tick_params(colors="#475569", labelsize=8.5, length=3)
     ax.set_ylabel(ylabel, fontsize=8.5, color="#475569", fontweight="500")
+    if xlabel:
+        ax.set_xlabel(xlabel, fontsize=7.5, color="#64748b", labelpad=4)
 
     ticks = _get_clean_ticks(len(x_vals), max_ticks=8)
     labels = [_format_date_label(x_vals[i], short=False) for i in ticks]
@@ -142,6 +145,8 @@ def render_html_report(data: dict[str, Any]) -> str:
     breakdowns = data["breakdowns"]
     zone_name = data["zone_name"]
     dates = series.get("dates", [])
+    tz_label = data.get("timezone", "SGT (UTC+8)")
+    chart_xlabel = f"Time ({tz_label})"
 
     # Generate charts
     chart_uniques = _generate_sparkline(dates, series.get("uniques", []), "#0ea5e9")
@@ -150,15 +155,16 @@ def render_html_report(data: dict[str, Any]) -> str:
     chart_bytes = _generate_sparkline(dates, series.get("bytes_mb", []), "#6366f1")
     chart_cached_bytes = _generate_sparkline(dates, series.get("cached_bytes_mb", []), "#8b5cf6")
 
-    chart_visits_large = _generate_timeseries_chart(dates, series.get("uniques", []), "Visits over time", "Visits", "#2563eb")
-    chart_data_transfer = _generate_timeseries_chart(dates, series.get("bytes_mb", []), "Data transfer over time", "MB", "#0284c7")
-    chart_pageviews = _generate_timeseries_chart(dates, series.get("pageviews", []), "Page views over time", "Page views", "#059669")
+    chart_visits_large = _generate_timeseries_chart(dates, series.get("uniques", []), "Visits over time", "Visits", "#2563eb", xlabel=chart_xlabel)
+    chart_data_transfer = _generate_timeseries_chart(dates, series.get("bytes_mb", []), "Data transfer over time", "MB", "#0284c7", xlabel=chart_xlabel)
+    chart_pageviews = _generate_timeseries_chart(dates, series.get("pageviews", []), "Page views over time", "Page views", "#059669", xlabel=chart_xlabel)
     chart_api_reqs = _generate_timeseries_chart(
         dates,
         [max(0, r - pv) for r, pv in zip(series.get("requests", []), series.get("pageviews", []))],
         "API requests over time",
         "API Requests",
-        "#7c3aed"
+        "#7c3aed",
+        xlabel=chart_xlabel,
     )
 
     # HTML / CSS Template
@@ -426,7 +432,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         </div>
       </div>
       <div style="font-size: 10.5px; color: #64748b; text-align: right;">
-        <b>Period:</b> {data['date_start']} to {data['date_end']}<br>
+        <b>Period:</b> {data['date_start']} to {data['date_end']} ({tz_label})<br>
         <b>Zone:</b> {zone_name}
       </div>
     </div>
@@ -496,7 +502,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">Analytics Overview</div>
+      <div style="font-size: 10.5px; color: #64748b;">Analytics Overview ({tz_label})</div>
     </div>
 
     <div class="toc">
@@ -561,7 +567,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">HTTP Traffic – Bandwidth & Pages</div>
+      <div style="font-size: 10.5px; color: #64748b;">HTTP Traffic – Bandwidth & Pages ({tz_label})</div>
     </div>
 
     <div class="section-title">HTTP Traffic – Data Transfer ({summary['data_transfer_gb']} GB)</div>
@@ -590,7 +596,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">HTTP Traffic – API Requests & Hostnames</div>
+      <div style="font-size: 10.5px; color: #64748b;">HTTP Traffic – API Requests & Hostnames ({tz_label})</div>
     </div>
 
     <div class="section-title">HTTP Traffic – Dedicated API Requests ({_format_num(summary['api_requests'])})</div>
@@ -628,7 +634,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">Security Analytics & WAF Protection</div>
+      <div style="font-size: 10.5px; color: #64748b;">Security Analytics & WAF Protection ({tz_label})</div>
     </div>
 
     <div class="section-title">Security Analytics – Action Breakdown</div>
@@ -687,7 +693,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">Threat Actors, Geolocation & Performance</div>
+      <div style="font-size: 10.5px; color: #64748b;">Threat Actors, Geolocation & Performance ({tz_label})</div>
     </div>
 
     <div class="section-title">Bot & Threat Classification</div>
@@ -760,7 +766,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">DNS Queries Analytics</div>
+      <div style="font-size: 10.5px; color: #64748b;">DNS Queries Analytics ({tz_label})</div>
     </div>
 
     <div class="section-title">DNS Resolution Health</div>
@@ -809,7 +815,7 @@ def render_html_report(data: dict[str, Any]) -> str:
           <span class="logo-subtitle">Breaking Business Boundaries</span>
         </div>
       </div>
-      <div style="font-size: 10.5px; color: #64748b;">DNS Records & SSL Posture</div>
+      <div style="font-size: 10.5px; color: #64748b;">DNS Records & SSL Posture ({tz_label})</div>
     </div>
 
     <div class="section-title">DNS Queries by Record Type</div>

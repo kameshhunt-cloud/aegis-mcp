@@ -117,6 +117,7 @@ def cloudflare_generate_report(
     output_pdf: str = "",
     output_html: str = "",
     api_token: str = "",
+    timezone: str = "SGT",
 ) -> dict[str, Any]:
     """Generate a comprehensive executive PDF & HTML report for a Cloudflare zone."""
     from tools.cloudflare.report import generate_cloudflare_report
@@ -127,4 +128,5 @@ def cloudflare_generate_report(
         output_pdf=output_pdf,
         output_html=output_html,
         token=api_token,
+        timezone=timezone,
     )

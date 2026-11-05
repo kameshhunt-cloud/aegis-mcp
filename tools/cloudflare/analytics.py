@@ -49,8 +49,8 @@ def resolve_zone(zone_identifier: str, token: str) -> dict[str, str]:
     raise CloudflareAnalyticsError(f"Could not resolve Cloudflare zone '{zone_identifier}'")
 
 
-def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30) -> dict[str, Any]:
-    """Fetch complete analytics dataset for a zone over the specified lookback days."""
+def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30, tz_name: str = "SGT") -> dict[str, Any]:
+    """Fetch complete analytics dataset for a zone over the specified lookback days in the given timezone."""
     api_token = (token or "").strip() or os.getenv("CLOUDFLARE_API_TOKEN", "").strip().strip("'\"")
     if not api_token:
         env_file = os.path.join(os.getcwd(), ".env")
@@ -70,11 +70,21 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     zone_id = zone_info["id"]
     zone_name = zone_info["name"]
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    if tz_name.upper() in ("SGT", "SINGAPORE", "UTC+8", "GMT+8"):
+        tz = datetime.timezone(datetime.timedelta(hours=8), name="SGT")
+        tz_label = "SGT (UTC+8)"
+    else:
+        tz = datetime.timezone.utc
+        tz_label = "UTC"
+
+    now = datetime.datetime.now(datetime.timezone.utc).astimezone(tz)
     date_end = now.strftime("%Y-%m-%d")
     date_start = (now - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
-    datetime_start = f"{date_start}T00:00:00Z"
-    datetime_end = f"{date_end}T23:59:59Z"
+
+    dt_start = datetime.datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=tz) - datetime.timedelta(days=days)
+    dt_end = datetime.datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=tz)
+    datetime_start = dt_start.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    datetime_end = dt_end.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
 
@@ -341,6 +351,7 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
         min_tls=min_tls,
         tls13=tls13,
         certificates=certificates,
+        timezone=tz_label,
     )
 
 
@@ -356,6 +367,7 @@ def _compute_aggregated_metrics(
     min_tls: str,
     tls13: str,
     certificates: list[dict[str, Any]],
+    timezone: str = "SGT (UTC+8)",
 ) -> dict[str, Any]:
     # Sum daily totals
     total_requests = 0
@@ -474,6 +486,7 @@ def _compute_aggregated_metrics(
         "date_start": date_start,
         "date_end": date_end,
         "days": days,
+        "timezone": timezone,
         "summary": {
             "total_requests": total_requests,
             "api_requests": api_requests,
