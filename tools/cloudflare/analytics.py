@@ -147,7 +147,8 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     daily_groups = []
     period_total = {}
     if resp_daily.status_code == 200:
-        zones_data = resp_daily.json().get("data", {}).get("viewer", {}).get("zones", [])
+        raw_daily = resp_daily.json().get("data") or {}
+        zones_data = raw_daily.get("viewer", {}).get("zones", [])
         if zones_data:
             daily_groups = zones_data[0].get("httpRequests1dGroups", [])
             p_tot = zones_data[0].get("periodTotal", [])
@@ -206,16 +207,6 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
             count
             dimensions {
               securitySource
-            }
-          }
-          wafScoreClasses: httpRequestsAdaptiveGroups(
-            limit: 10
-            filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
-            orderBy: [count_DESC]
-          ) {
-            count
-            dimensions {
-              wafAttackScoreClass
             }
           }
           topAttackedPaths: httpRequestsAdaptiveGroups(
@@ -291,9 +282,44 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     )
     adaptive_data: dict[str, Any] = {}
     if resp_adaptive.status_code == 200:
-        z_adaptive = resp_adaptive.json().get("data", {}).get("viewer", {}).get("zones", [])
+        raw_adaptive = resp_adaptive.json().get("data") or {}
+        z_adaptive = raw_adaptive.get("viewer", {}).get("zones", [])
         if z_adaptive:
             adaptive_data = z_adaptive[0]
+
+    # 2b. Optional: Query Advanced WAF Attack Score (Enterprise ML feature, gracefully ignored if plan does not license it)
+    waf_score_query = """
+    query GetWafScores($zoneTag: string, $dateStart: string, $dateEnd: string) {
+      viewer {
+        zones(filter: {zoneTag: $zoneTag}) {
+          wafScoreClasses: httpRequestsAdaptiveGroups(
+            limit: 10
+            filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
+            orderBy: [count_DESC]
+          ) {
+            count
+            dimensions {
+              wafAttackScoreClass
+            }
+          }
+        }
+      }
+    }
+    """
+    try:
+        resp_waf = requests.post(
+            GRAPHQL_ENDPOINT,
+            headers=headers,
+            json={"query": waf_score_query, "variables": {"zoneTag": zone_id, "dateStart": datetime_start, "dateEnd": datetime_end}},
+            timeout=20,
+        )
+        if resp_waf.status_code == 200:
+            raw_waf = resp_waf.json().get("data") or {}
+            z_waf = raw_waf.get("viewer", {}).get("zones", [])
+            if z_waf and z_waf[0].get("wafScoreClasses"):
+                adaptive_data["wafScoreClasses"] = z_waf[0]["wafScoreClasses"]
+    except Exception:
+        pass
 
     # 3. Query DNS Analytics (use date_geq/leq — dnsAnalyticsAdaptiveGroups only supports date filters)
     dns_query = """
@@ -342,7 +368,8 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     )
     dns_data: dict[str, Any] = {}
     if resp_dns.status_code == 200:
-        z_dns = resp_dns.json().get("data", {}).get("viewer", {}).get("zones", [])
+        raw_dns = resp_dns.json().get("data") or {}
+        z_dns = raw_dns.get("viewer", {}).get("zones", [])
         if z_dns:
             dns_data = z_dns[0]
 
@@ -485,7 +512,10 @@ def _compute_aggregated_metrics(
     data_transfer_gb = round(total_bytes / (1000 ** 3), 2)
     data_transfer_rounded = f"{int(round(total_bytes / (1000 ** 3)))} GB"
     data_cached_mb = int(round(total_cached_bytes / (1000 ** 2)))
-    data_cached_str = f"{data_cached_mb} MB"
+    if total_cached_bytes >= 1000 ** 3:
+        data_cached_str = f"{round(total_cached_bytes / (1000 ** 3), 2)} GB"
+    else:
+        data_cached_str = f"{data_cached_mb} MB"
 
     # Cache hit ratios: overall edge requests vs cache-eligible requests
     cache_breakdown = adaptive_data.get("cacheBreakdown", [])
@@ -526,8 +556,13 @@ def _compute_aggregated_metrics(
 
     # WAF Scores & Bot Traffic
     waf_score_classes = adaptive_data.get("wafScoreClasses", [])
-    waf_attack_count = sum(item.get("count", 0) for item in waf_score_classes if item.get("dimensions", {}).get("wafAttackScoreClass") in ("attack", "likely_attack"))
-    bot_traffic_pct = round((waf_attack_count / total_requests * 100), 2) if total_requests > 0 else 0.0
+    if waf_score_classes:
+        waf_attack_count = sum(item.get("count", 0) for item in waf_score_classes if item.get("dimensions", {}).get("wafAttackScoreClass") in ("attack", "likely_attack"))
+        bot_traffic_pct = round((waf_attack_count / total_requests * 100), 2) if total_requests > 0 else 0.0
+    else:
+        # Fallback for plans without Enterprise WAF Attack Score: use daily threat count or WAF blocks
+        threat_count = total_threats or waf_blocked
+        bot_traffic_pct = round((threat_count / total_requests * 100), 2) if total_requests > 0 else 0.0
 
     # DNS Stats
     dns_by_code = dns_data.get("dnsByCode", [])
