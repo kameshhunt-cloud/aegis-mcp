@@ -70,6 +70,7 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     zone_id = zone_info["id"]
     zone_name = zone_info["name"]
 
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
     if tz_name.upper() in ("SGT", "SINGAPORE", "UTC+8", "GMT+8"):
         tz = datetime.timezone(datetime.timedelta(hours=8), name="SGT")
         tz_label = "SGT (UTC+8)"
@@ -77,14 +78,14 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
         tz = datetime.timezone.utc
         tz_label = "UTC"
 
-    now = datetime.datetime.now(datetime.timezone.utc).astimezone(tz)
-    date_end = now.strftime("%Y-%m-%d")
-    date_start = (now - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
+    # Exact rolling 720-hour (30-day) window ending at the current minute
+    datetime_end = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    datetime_start = (now_utc - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    dt_start = datetime.datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=tz) - datetime.timedelta(days=days)
-    dt_end = datetime.datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=tz)
-    datetime_start = dt_start.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    datetime_end = dt_end.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Clean calendar dates for daily trends and display
+    now_tz = now_utc.astimezone(tz)
+    date_end = now_tz.strftime("%Y-%m-%d")
+    date_start = (now_tz - datetime.timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
     headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
 
@@ -134,6 +135,16 @@ def fetch_zone_report_data(zone_identifier: str, token: str = "", days: int = 30
     query GetAdaptive($zoneTag: string, $dateStart: string, $dateEnd: string) {
       viewer {
         zones(filter: {zoneTag: $zoneTag}) {
+          overviewTotals: httpRequestsAdaptiveGroups(
+            limit: 1
+            filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
+          ) {
+            count
+            sum {
+              edgeResponseBytes
+              visits
+            }
+          }
           quantiles: httpRequestsAdaptiveGroups(
             limit: 1
             filter: {datetime_geq: $dateStart, datetime_leq: $dateEnd}
@@ -413,6 +424,15 @@ def _compute_aggregated_metrics(
         cache_pct_series.append(round((cr / reqs * 100), 1) if reqs > 0 else 0.0)
         uniques_series.append(u)
         pageviews_series.append(pv)
+
+    # Align with Cloudflare Dashboard Overview headline metrics (exact rolling window)
+    overview_totals = (adaptive_data.get("overviewTotals") or [{}])[0]
+    if overview_totals and overview_totals.get("count"):
+        total_requests = overview_totals.get("count", total_requests)
+        total_bytes = overview_totals.get("sum", {}).get("edgeResponseBytes", total_bytes)
+        total_visits = overview_totals.get("sum", {}).get("visits") or total_uniques
+    else:
+        total_visits = total_uniques
 
     # Cache hit ratio
     cache_hit_ratio = round((total_cached_requests / total_requests * 100), 1) if total_requests > 0 else 0.0
